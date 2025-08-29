@@ -1,0 +1,123 @@
+#include <Arduino.h>
+#include <SoftwareSerial.h>
+
+// ======================= Motores (puente H) =======================
+const uint8_t PIN_IN1 = 7; // Motor Izquierdo
+const uint8_t PIN_IN2 = 6;
+const uint8_t PIN_IN3 = 8; // Motor Derecho
+const uint8_t PIN_IN4 = 9;
+
+// ======================= Bluetooth HC-06 ==========================
+SoftwareSerial BT1(10, 11); // RX (D10) <- TX HC-06 | TX (D11) -> RX HC-06
+
+// ======================= Helpers =================================
+void printMotorState(const char* action) {
+  Serial.print('['); Serial.print(millis()); Serial.print(F(" ms] "));
+  Serial.print(F("ACCION: ")); Serial.print(action);
+  Serial.print(F(" | IN1=")); Serial.print(digitalRead(PIN_IN1));
+  Serial.print(F(" IN2="));   Serial.print(digitalRead(PIN_IN2));
+  Serial.print(F(" IN3="));   Serial.print(digitalRead(PIN_IN3));
+  Serial.print(F(" IN4="));   Serial.println(digitalRead(PIN_IN4));
+}
+
+void goForward() {
+  digitalWrite(PIN_IN1, HIGH); digitalWrite(PIN_IN2, LOW);
+  digitalWrite(PIN_IN3, HIGH); digitalWrite(PIN_IN4, LOW);
+  printMotorState("ADELANTE (F)");
+}
+void goBack() {
+  digitalWrite(PIN_IN1, LOW);  digitalWrite(PIN_IN2, HIGH);
+  digitalWrite(PIN_IN3, LOW);  digitalWrite(PIN_IN4, HIGH);
+  printMotorState("ATRAS (B)");
+}
+void turnLeft() {
+  digitalWrite(PIN_IN1, LOW);  digitalWrite(PIN_IN2, HIGH); // izq atrás
+  digitalWrite(PIN_IN3, HIGH); digitalWrite(PIN_IN4, LOW);  // der adelante
+  printMotorState("IZQUIERDA (L)");
+}
+void turnRight() {
+  digitalWrite(PIN_IN1, HIGH); digitalWrite(PIN_IN2, LOW);  // izq adelante
+  digitalWrite(PIN_IN3, LOW);  digitalWrite(PIN_IN4, HIGH); // der atrás
+  printMotorState("DERECHA (R)");
+}
+void stopMotors() {
+  digitalWrite(PIN_IN1, LOW);  digitalWrite(PIN_IN2, LOW);
+  digitalWrite(PIN_IN3, LOW);  digitalWrite(PIN_IN4, LOW);
+  printMotorState("STOP (P/S)");
+}
+
+void applyCommand(char c) {
+  switch (c) {
+    case 'F': goForward();  break;
+    case 'B': goBack();     break;
+    case 'L': turnLeft();   break;
+    case 'R': turnRight();  break;
+    case 'P': // fallthrough
+    case 'S': stopMotors(); break;
+  }
+}
+
+bool isValidCmd(char c) {
+  return (c=='F' || c=='B' || c=='L' || c=='R' || c=='P' || c=='S');
+}
+
+void processCommand(char c, const char* src) {
+  if (c == '\r' || c == '\n') return; // ignora terminadores
+
+  Serial.print('['); Serial.print(millis()); Serial.print(F(" ms] "));
+  Serial.print(F("RX ")); Serial.print(src); Serial.print(F(" CMD: '"));
+  Serial.print(c); Serial.println('\'');
+
+  if (isValidCmd(c)) {
+    applyCommand(c); // mantiene la última acción hasta nuevo comando
+  } else {
+    Serial.print(F("Comando desconocido: '")); Serial.print(c);
+    Serial.println(F("'. Use F/B/L/R/P/S"));
+  }
+}
+
+// ======================= Setup / Loop ============================
+void setup() {
+  // Depuración por USB
+  Serial.begin(9600);
+
+  // Bluetooth (HC-06 típico a 9600 8N1)
+  BT1.begin(9600);
+
+  // Pines motores
+  pinMode(PIN_IN1, OUTPUT);
+  pinMode(PIN_IN2, OUTPUT);
+  pinMode(PIN_IN3, OUTPUT);
+  pinMode(PIN_IN4, OUTPUT);
+  stopMotors();
+
+  // Mensajes de inicio
+  Serial.println(F("==== CAR DEBUG + BLUETOOTH ===="));
+  Serial.println(F("USB: 9600 8N1 | BT (HC-06): 9600 8N1"));
+  Serial.println(F("Comandos: F=adelante, B=atras, L=izquierda, R=derecha, P=stop, S=stop"));
+  Serial.print(F("Pins motores => IN1=")); Serial.print(PIN_IN1);
+  Serial.print(F(" IN2=")); Serial.print(PIN_IN2);
+  Serial.print(F(" IN3=")); Serial.print(PIN_IN3);
+  Serial.print(F(" IN4=")); Serial.println(PIN_IN4);
+  Serial.println(F("Auto-STOP: DESACTIVADO (mantiene ultima orden)"));
+  Serial.println(F("Listo. Esperando comandos por BT o USB..."));
+
+  // Mensaje hacia la app BT
+  BT1.println(F("HC-06 listo. Envie F/B/L/R/P/S (auto-STOP desactivado)"));
+}
+
+void loop() {
+  // Comandos desde la app móvil (Bluetooth)
+  while (BT1.available()) {
+    char c = BT1.read();
+    processCommand(c, "BT");
+  }
+
+  // Comandos desde el Monitor Serie (USB) — útil para test
+  while (Serial.available()) {
+    char c = Serial.read();
+    processCommand(c, "USB");
+  }
+
+  // Sin auto-STOP: no se detiene si dejan de llegar comandos.
+}
