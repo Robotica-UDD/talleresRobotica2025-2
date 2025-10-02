@@ -1,0 +1,145 @@
+// Pines del puente H 
+
+int IN1 = 9;     // Motor A 
+int IN2 = 8; 
+int IN3 = 5;     // Motor B 
+int IN4 = 4; 
+
+
+// Pin de enable/PWM del motor A (control de velocidad) 
+
+int ENA = 10; 
+
+  
+
+// Pin de enable/PWM del motor B (control de velocidad) 
+
+int ENB = 11; 
+
+  
+
+int sensor = 7;  // Sensor infrarrojo 
+
+  
+
+void setup() { 
+
+  // Configuración de pines 
+
+  //IN como salida para controlar dirección del motor A 
+
+  pinMode(IN1, OUTPUT); 
+
+  pinMode(IN2, OUTPUT); 
+
+  pinMode(ENA, OUTPUT);// ENA como salida PWM para controlar velocidad del motor A 
+
+  
+
+  //IN como salida para controlar dirección del motor B 
+
+  pinMode(IN3, OUTPUT); 
+
+  pinMode(IN4, OUTPUT); 
+
+  pinMode(ENB, OUTPUT);// ENB como salida PWM para controlar velocidad del motor B 
+
+  
+
+  pinMode(sensor, INPUT); 
+
+  
+
+  detenerMotores(); // Inicializar motores apagados 
+
+} 
+
+  
+
+void loop() { 
+
+  int lectura = digitalRead(sensor); 
+
+  
+
+// Si la lectura es HIGH: no detecta línea 
+
+  if (lectura == HIGH) { 
+
+    avanzar(200);// Si no detecta línea -> avanza 
+
+  } else { 
+
+    retroceder(200);// Si detecta línea -> retrocede 
+
+    delay(500);// Retrocede medio segundo 
+
+    detenerMotores();// Los motores se apagan después de retroceder 
+
+    delay(200);// Pausa antes de volver a intentar 
+
+  } 
+
+} 
+
+  
+
+// FUNCIONES  
+
+void avanzar(int velocidad) { 
+
+  // Motor A: IN1 HIGH, IN2 LOW avanza hacia adelante 
+
+  digitalWrite(IN1, HIGH); 
+
+  digitalWrite(IN2, LOW); 
+
+  analogWrite(ENA, velocidad); //  PWM en ENA para controlar la velocidad del motor A 
+
+  
+
+// Motor B: invertir polaridad (IN3 LOW, IN4 HIGH) avanza hacia adelante 
+
+  digitalWrite(IN3, HIGH); 
+
+  digitalWrite(IN4, LOW); 
+
+  analogWrite(ENB, velocidad);//  PWM en ENB para controlar la velocidad del motor B 
+
+} 
+
+  
+
+void retroceder(int velocidad) { 
+
+  // Motor A: invertir polaridad (IN1 LOW, IN2 HIGH) avanza hacia atrás 
+
+  digitalWrite(IN1, LOW); 
+
+  digitalWrite(IN2, HIGH); 
+
+  analogWrite(ENA, velocidad); // PWM para velocidad del motor A mientras retrocede 
+
+  
+
+  // Motor B: invertir polaridad (IN3 LOW, IN4 HIGH)avanza hacia atrás 
+
+  digitalWrite(IN3, LOW); 
+
+  digitalWrite(IN4, HIGH); 
+
+  analogWrite(ENB, velocidad);// PWM para velocidad del motor B mientras retrocede 
+
+} 
+
+  
+
+void detenerMotores() { 
+
+  // Detiene ambos motores aplicando PWM 0 en los pines ENA y ENB 
+
+  analogWrite(ENA, 0);//0 en ENA para detener motor A 
+
+  analogWrite(ENB, 0);//0 en ENB para detener motor B 
+
+} 
